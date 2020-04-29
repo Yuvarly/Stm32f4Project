@@ -17,3 +17,4 @@
 .\objects\main.o: .\FreeRTOS\inc\task.h
 .\objects\main.o: .\FreeRTOS\inc\list.h
 .\objects\main.o: .\FreeRTOS\inc\queue.h
+.\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

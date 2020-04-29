@@ -2,6 +2,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
+#include <math.h>
 
 xQueueHandle SendData;
 
@@ -16,6 +17,10 @@ void writeLine(char *string);
 void vTaskUSART1(void *arg);
 void vTaskSPI1(void *arg);
 
+int getAngleX(int x, int y, int z);
+int getAngleY(int x, int y, int z);
+
+
 int main() {
 
 	GPIOInit();
@@ -24,7 +29,7 @@ int main() {
 	
 	SendData = xQueueCreate(10, sizeof(uint16_t));
 	
-	xTaskCreate(vTaskUSART1, "USATR1", 32, NULL, 1, NULL);
+	xTaskCreate(vTaskUSART1, "USATR1", 100, NULL, 1, NULL);
 	xTaskCreate(vTaskSPI1, "SPI1", 32, NULL, 1, NULL);
 	
 	vTaskStartScheduler();
@@ -36,7 +41,10 @@ int main() {
 
 void vTaskUSART1(void *arg) {
 
-	int16_t data_x;
+	int8_t data_x;
+	int8_t x,y,z;
+	double x1 = 0;
+	double y1 = 0;
 
 	while(1) {
 
@@ -44,14 +52,22 @@ void vTaskUSART1(void *arg) {
 		if (uxQueueMessagesWaiting(SendData) != 0){
 
 			xQueueReceive(SendData, &data_x, 0);
-			writeLine("x = ");
-			sendDataUSART(data_x);
-
+			x = data_x;
 			xQueueReceive(SendData, &data_x, 0);
-			writeLine("y = ");
-			sendDataUSART(data_x);
+			y = data_x;
+			xQueueReceive(SendData, &data_x, 0);
+			z = data_x;
 
-			writeLine("\r\n");	
+			writeLine("x = ");
+			x1 = getAngleX(x, y, z);
+			sendDataUSART(x1);
+
+			writeLine("y = ");
+			y1 = getAngleY(x, y, z);
+			sendDataUSART(y1);
+		
+			writeLine("\r\n");
+
 		}
 	}
 	
@@ -59,17 +75,18 @@ void vTaskUSART1(void *arg) {
 
 void vTaskSPI1(void *arg) {
 	
-	int16_t x,y;
+	int8_t x,y,z;
 	
 	for(int i=0;i<1000000;i++);
 
-	SPI_Tx(0x20, 0x63);
+	SPI_Tx(0x20, 0x67);
 
 	while(1)
 	{
 	
 		x = SPI_Rx(0x29);
 		y = SPI_Rx(0x2B);
+		z = SPI_Rx(0x2D);
 
 		if (x < -20) GPIOD->ODR |= GPIO_ODR_ODR_12;
 		else GPIOD->ODR &= ~GPIO_ODR_ODR_12;
@@ -83,6 +100,7 @@ void vTaskSPI1(void *arg) {
 
 		xQueueSend(SendData, &x, 0);
 		xQueueSend(SendData, &y, 0);
+		xQueueSend(SendData, &z, 0);
 		vTaskDelay(500);
 	}
 }
@@ -216,6 +234,17 @@ void writeLine(char *string) {
 				USART2->DR = string[i];
         i++;
     }
+}
+
+int getAngleX(int x, int y, int z) {
+	
+	return atan(x/sqrt(y*y + z*z))*(180/3.14);
+	
+}
+
+int getAngleY(int x, int y, int z) {
+	
+	return atan(y/sqrt(x*x + z*z))*(180/3.14);
 }
 
 
